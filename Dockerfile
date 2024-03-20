@@ -1,0 +1,9 @@
+FROM python:3.8-slim-buster
+WORKDIR /usr/src/app
+COPY . .
+RUN pip install --no-cache-dir -r requirements.txt
+EXPOSE 5000
+ENV SPOTIFY_CLIENT_ID=9ada1ae6a8154663a48f889d10cf8faf
+ENV SPOTIFY_CLIENT_SECRET=12e1f946e15c415f99a72bfa233193ce
+ENV SPOTIFY_REDIRECT_URI=conductifyhgr://callback
+CMD ["gunicorn", "-b", "0.0.0.0:5000", "app:app"]
