@@ -6,7 +6,8 @@ import os
 import mediapipe as mp
 import numpy as np
 import cv2
-from tensorflow.keras.models import load_model
+import keras
+from keras.models import load_model
 from sklearn.preprocessing import LabelEncoder
 
 app = Flask(__name__)
@@ -16,7 +17,7 @@ app.secret_key = 'fypsecret2024gabriel'
 # Initialize Mediapipe and model
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(static_image_mode=True, max_num_hands=1, min_detection_confidence=0.5)
-model = load_model('conductify_fcnn.keras')
+model = load_model('conductify_fcnn.h5')
 label_encoder = LabelEncoder()
 label_encoder.classes_ = np.array(['nextsong', 'pause', 'play', 'prevsong', 'volumedown', 'volumeup'])
 
