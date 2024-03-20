@@ -13,16 +13,34 @@ app = Flask(__name__)
 CORS(app)
 app.secret_key = 'fypsecret2024gabriel'
 
-# Initialize Mediapipe and model
+# Initialize Mediapipe
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(static_image_mode=True, max_num_hands=1, min_detection_confidence=0.5)
-model = load_model('conductify_fcnn.keras')
+model = None
 label_encoder = LabelEncoder()
 label_encoder.classes_ = np.array(['nextsong', 'pause', 'play', 'prevsong', 'volumedown', 'volumeup'])
 
-SPOTIFY_CLIENT_ID = '9ada1ae6a8154663a48f889d10cf8faf'
-SPOTIFY_CLIENT_SECRET = '12e1f946e15c415f99a72bfa233193ce'
-SPOTIFY_REDIRECT_URI = 'conductifyhgr://callback'
+# These env vars are set internally within server for security
+SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
+SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
+SPOTIFY_REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI")
+
+def download_model():
+    model_url = "https://www.dropbox.com/scl/fi/ckvs4qil7o1tgqz8zx9yc/conductify_fcnn.keras?rlkey=2csyzs4j88f2nwnpcxe2xyxoc&dl=0"
+    local_model_path = "conductify_fcnn.keras"
+    if not os.path.exists(local_model_path):
+        print("Downloading model...")
+        resp = requests.get(model_url)
+        os.makedirs(os.path.dirname(local_model_path), exist_ok=True)
+        with open(local_model_path, 'wb') as f:
+            f.write(resp.content)
+        print("Model downloaded successfully.")
+    global model
+    model = load_model(local_model_path)
+    
+@app.before_first_request
+def before_first_request():
+    download_model()
 
 # Test route
 @app.route('/')
@@ -64,7 +82,7 @@ def callback():
 
 @app.route('/exchange_token', methods=['POST'])
 def exchange_token():
-    # Get the authorization code from the request body
+    # Get auth code from the request body
     auth_code = request.json.get('code')
     if not auth_code:
         return jsonify({'error': 'Missing authorization code'}), 400
