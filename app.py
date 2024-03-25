@@ -14,10 +14,10 @@ app = Flask(__name__)
 CORS(app)
 app.secret_key = 'fypsecret2024gabriel'
 
-# Initialize Mediapipe and model
+# Initialize Mediapipe and fcnn model
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(static_image_mode=True, max_num_hands=1, min_detection_confidence=0.5)
-model = load_model('conductify_fcnn.h5')
+model = load_model('conductify_nn.h5')
 label_encoder = LabelEncoder()
 label_encoder.classes_ = np.array(['nextsong', 'pause', 'play', 'prevsong', 'volumedown', 'volumeup'])
 
@@ -65,7 +65,7 @@ def callback():
 
 @app.route('/exchange_token', methods=['POST'])
 def exchange_token():
-    # Get the authorization code from the request body
+    # Get the auth code from the request body
     auth_code = request.json.get('code')
     if not auth_code:
         return jsonify({'error': 'Missing authorization code'}), 400
