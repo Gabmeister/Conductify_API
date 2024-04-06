@@ -98,45 +98,45 @@ def exchange_token():
 # This route is used to receive POST requests including an image and return prediction as JSON.
 @app.route('/predict', methods=['POST'])
 def predict_gesture():
-    # Extract the file from the incoming request
     file = request.files.get('image')
     if not file:
         return jsonify({'error': 'No file part in the request'}), 400
 
     npimg = np.frombuffer(file.read(), np.uint8)
-    image = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
-    
-    # Process image with Mediapipe
-    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    results = hands.process(image_rgb)
+    original_image = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
+    image_rgb = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
+    initial_results = hands.process(image_rgb) 
     prediction = 'No hands'
-    
-    if results.multi_hand_landmarks:
-        for hand_landmarks in results.multi_hand_landmarks:
-            # Extract landmarks from image and prepare them for prediction 
-            h, w, _ = image.shape
+
+    if initial_results.multi_hand_landmarks:
+        for hand_landmarks in initial_results.multi_hand_landmarks:
+            # Calculate the img cropping coordinates
+            h, w, _ = original_image.shape
             landmark_coords = [(landmark.x * w, landmark.y * h) for landmark in hand_landmarks.landmark]
             min_x, min_y = min(landmark_coords, key=lambda x: x[0])[0], min(landmark_coords, key=lambda x: x[1])[1]
             max_x, max_y = max(landmark_coords, key=lambda x: x[0])[0], max(landmark_coords, key=lambda x: x[1])[1]
             
-            # Crop and center the image
-            cropped_image = image[int(min_y):int(max_y), int(min_x):int(max_x)]
+            # Crop and center image
+            cropped_image = original_image[int(min_y):int(max_y), int(min_x):int(max_x)]
             fixed_size_image = np.zeros((400, 400, 3), dtype=np.uint8)
-            x_offset = (400 - cropped_image.shape[1]) // 2
-            y_offset = (400 - cropped_image.shape[0]) // 2
+            x_offset = max((400 - cropped_image.shape[1]) // 2, 0)
+            y_offset = max((400 - cropped_image.shape[0]) // 2, 0)
             fixed_size_image[y_offset:y_offset+cropped_image.shape[0], x_offset:x_offset+cropped_image.shape[1]] = cropped_image
             fixed_size_image_rgb = cv2.cvtColor(fixed_size_image, cv2.COLOR_BGR2RGB)
             
-            # Prepare landmarks for prediction
-            normalized_landmarks = [(landmark.x, landmark.y, landmark.z) for landmark in hand_landmarks.landmark]
-            normalized_landmarks_flat = [item for sublist in normalized_landmarks for item in sublist]
-            landmarks_array = np.array(normalized_landmarks_flat).reshape(1, -1)
-            
-            # Prediction using FCNN model
-            predicted = model.predict(landmarks_array)
-            predicted_label_index = np.argmax(predicted)
-            predicted_label = label_encoder.inverse_transform([predicted_label_index])[0]
-            prediction = predicted_label
+            # Process centered image with MediaPipe 
+            results_fixed = hands.process(fixed_size_image_rgb)
+            if results_fixed.multi_hand_landmarks:
+                for fixed_hand_landmarks in results_fixed.multi_hand_landmarks:
+                    normalized_landmarks = [(landmark.x, landmark.y, landmark.z) for landmark in fixed_hand_landmarks.landmark]
+                    normalized_landmarks_flat = [item for sublist in normalized_landmarks for item in sublist]
+                    landmarks_array = np.array(normalized_landmarks_flat).reshape(1, -1)
+                    
+                    # Prediction using FCNN model
+                    predicted = model.predict(landmarks_array)
+                    predicted_label_index = np.argmax(predicted)
+                    predicted_label = label_encoder.inverse_transform([predicted_label_index])[0]
+                    prediction = predicted_label
     
     return jsonify({'prediction': prediction})
 
