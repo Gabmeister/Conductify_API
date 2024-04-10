@@ -110,23 +110,28 @@ def predict_gesture():
 
     if initial_results.multi_hand_landmarks:
         for hand_landmarks in initial_results.multi_hand_landmarks:
-            # Calculate the img cropping coordinates
+            # extract image dimensions
             h, w, _ = original_image.shape
+            # get coordinates of landmarks from image
             landmark_coords = [(landmark.x * w, landmark.y * h) for landmark in hand_landmarks.landmark]
+            # calculate bounding box around hand
             min_x, min_y = min(landmark_coords, key=lambda x: x[0])[0], min(landmark_coords, key=lambda x: x[1])[1]
             max_x, max_y = max(landmark_coords, key=lambda x: x[0])[0], max(landmark_coords, key=lambda x: x[1])[1]
-            
-            # Crop and center image
+            # crop new image using bounding box 
             cropped_image = original_image[int(min_y):int(max_y), int(min_x):int(max_x)]
+            # create fixed sized image 400x400 for backdrop
             fixed_size_image = np.zeros((400, 400, 3), dtype=np.uint8)
+            
+            # calculate the offsets for centering cropped image onto fixed size image 
             x_offset = max((400 - cropped_image.shape[1]) // 2, 0)
             y_offset = max((400 - cropped_image.shape[0]) // 2, 0)
             fixed_size_image[y_offset:y_offset+cropped_image.shape[0], x_offset:x_offset+cropped_image.shape[1]] = cropped_image
             fixed_size_image_rgb = cv2.cvtColor(fixed_size_image, cv2.COLOR_BGR2RGB)
             
-            # Process centered image with MediaPipe 
+            # process new fixed size image for updated hand landmarks
             results_fixed = hands.process(fixed_size_image_rgb)
             if results_fixed.multi_hand_landmarks:
+                # extract and store landmarks from fixed size image
                 for fixed_hand_landmarks in results_fixed.multi_hand_landmarks:
                     normalized_landmarks = [(landmark.x, landmark.y, landmark.z) for landmark in fixed_hand_landmarks.landmark]
                     normalized_landmarks_flat = [item for sublist in normalized_landmarks for item in sublist]
