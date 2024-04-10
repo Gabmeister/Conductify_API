@@ -25,7 +25,7 @@ SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
 SPOTIFY_REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI")
 
-# Test route
+# test route
 @app.route('/')
 def index():
     return 'hello world!'
@@ -36,42 +36,17 @@ def login():
     auth_url = f"https://accounts.spotify.com/authorize?response_type=code&client_id={SPOTIFY_CLIENT_ID}&scope={quote(scope)}&redirect_uri={quote(SPOTIFY_REDIRECT_URI)}"
     return redirect(auth_url)
 
-@app.route('/callback')
-def callback():
-    code = request.args.get('code')
-    if not code:
-        return jsonify({'error': 'Authorization code not found'}), 400
-
-    auth_token_url = 'https://accounts.spotify.com/api/token'
-    data = {
-        'grant_type': 'authorization_code',
-        'code': code,
-        'redirect_uri': SPOTIFY_REDIRECT_URI,
-        'client_id': SPOTIFY_CLIENT_ID,
-        'client_secret': SPOTIFY_CLIENT_SECRET
-    }
-    
-    res = requests.post(auth_token_url, data=data)
-    if res.status_code != 200:
-        return jsonify({'error': 'Failed to retrieve tokens', 'details': res.json()}), res.status_code
-
-    auth_response_data = res.json()
-    access_token = auth_response_data.get('access_token')
-    refresh_token = auth_response_data.get('refresh_token')
-    session['access_token'] = access_token
-    session['refresh_token'] = refresh_token
-
-    return jsonify({'message': 'Authentication successful', 'access_token': access_token, 'refresh_token': refresh_token})
-
+# this route is used to receive POST requests containing an auth code and exchange it for tokens
 @app.route('/exchange_token', methods=['POST'])
 def exchange_token():
-    # Get the auth code from the request body
+    # get the auth code from request body
     auth_code = request.json.get('code')
+    # error checking for missing code
     if not auth_code:
-        return jsonify({'error': 'Missing authorization code'}), 400
-
-    # token endpoint
+        return jsonify({'error': 'Missing authorization code'}), 400 
+    # define Spotify API endpoint
     token_url = 'https://accounts.spotify.com/api/token'
+    # set up payload for POST request to Spotify API
     data = {
         'grant_type': 'authorization_code',
         'code': auth_code,
@@ -80,18 +55,19 @@ def exchange_token():
         'client_secret': SPOTIFY_CLIENT_SECRET,
     }
 
-    # Make the POST request to exchange the code for access and refresh tokens
+    # make POST request to exchange auth code for access and refresh token
     response = requests.post(token_url, data=data)
-
+    # error checking for missing token response
     if response.status_code != 200:
         return jsonify({'error': 'Failed to retrieve tokens', 'details': response.json()}), response.status_code
-
+    # parse JSON response from Spotify and extract tokens
     tokens = response.json()
     access_token = tokens.get('access_token')
     refresh_token = tokens.get('refresh_token')
+    # store tokens within session
     session['access_token'] = access_token
     session['refresh_token'] = refresh_token
-
+    # return tokens in JSON format within response
     return jsonify({'message': 'Tokens exchanged successfully', 'access_token': access_token, 'refresh_token': refresh_token})
 
 
